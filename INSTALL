@@ -1,0 +1,47 @@
+問題サーバのデプロイ手順
+
+1. 必要なパッケージ
+  vsftpd, openbsd-inetd, build-essential, libncurses5-dev
+  nmon, glibc-common, glibc-devel, glibc-dev,
+  gcc, make, bc, screen, ncurses-dev
+  netkit-telnet-0.17 と debian パッチ
+
+2. seccon ユーザを用意する
+
+seccon:x:1001:1001:SECCON SLA user,N999,9999,5555:/home/seccon:/bin/bash
+
+3 netkit-telnet-0.17をコンパイル（展開，パッチ，configure，make）
+	   __GNU_SOURCE__　を define しているとうまくいく
+
+4 telnetlogin.dff パッチをあてる
+
+cd netkit-telnet-0.17/telnetlogin
+patch -p2 < telnetlogin.diff
+
+5. telnet，telnetd，telnetlogin を配置．ここでは /home/seccon/telnet の下に置くものと仮定とする
+
+6. vsftp の設定
+
+6-1. /etc/vsftpd.conf に以下を記載
+
+   anonymous_enable=YES
+   anon_root=/home/seccon/work/root
+
+6-2. /home/seccon/work/root にヒントファイル（telnetlogin.c）をおく．
+
+7. inetd  の設定
+
+7-1. run level 2 以上で openbsd-inetd が起動するようにしておく
+
+7-2.  /etc/inetd.conf に以下の2行を設定
+
+   telnet  stream  tcp     nowait  root    /home/seccon/telnet/telnetd/telnetd      telnet -L/home/seccon/telnet/telnetlogin/telnetlogin
+	   ftp     stream  tcp     nowait  root    /usr/sbin/vsftpd        vsftpd
+
+7-3. sudo /etc/init.d/openbsd-inetd start
+
+----
+問題サーバのテスト手順
+
+1. ftp で anonymous ftp が可能か確認
+2. telnet -l attackers xxx.xxx.xxx.xxx で接続，administrator を入れたら切断されるか確認
